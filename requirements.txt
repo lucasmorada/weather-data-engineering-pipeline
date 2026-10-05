@@ -1,0 +1,16 @@
+# Core pipeline
+pandas>=2.0,<3.0
+requests>=2.31
+pyarrow>=14.0
+SQLAlchemy>=2.0,<3.0
+psycopg2-binary>=2.9
+python-dotenv>=1.0
+
+# Notebook / visualisation
+matplotlib>=3.7
+jupyterlab>=4.0
+
+# Tests
+pytest>=7.4
+
+# Note: Apache Airflow is NOT listed here. It runs inside Docker (see docker-compose.yml).
