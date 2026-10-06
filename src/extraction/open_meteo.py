@@ -14,11 +14,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-import pandas as pd
-import requests
+import pandas as pd # type: ignore
+import requests # type: ignore
 
-from config import config
-from src.utils import slugify
+from config import config # type: ignore
+from src.utils import slugify # type: ignore
 
 logger = logging.getLogger(__name__)
 
