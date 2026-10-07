@@ -1,10 +1,3 @@
-"""Extraction layer: download hourly weather data from the Open-Meteo API.
-
-Raw API responses are stored untouched as JSON files in ``data/raw/`` so the
-pipeline can always be re-run from the original data.
-
-Layout:  data/raw/date=YYYY-MM-DD/<city_slug>_<run_id>.json
-"""
 from __future__ import annotations
 
 import json
