@@ -280,7 +280,7 @@ Useful: `python -m src.pipeline --past-days 3`, `make down`, `make clean`.
 
 ## Author
 
-**[Your Name]**: Software Engineering student looking for an internship in Data Engineering / Data Analytics.
+**Lucas Dias**: Software Engineering student looking for an internship in Data Engineering / Data Analytics.
 
-* GitHub: https://github.com/your-user
-* LinkedIn: https://linkedin.com/in/your-profile
+* GitHub: https://github.com/lucasmorada
+* LinkedIn: https://linkedin.com/in/lucasdiassiqueira
