@@ -230,7 +230,7 @@ make test        # or: python -m pytest
 Requirements: Python 3.10+, Docker and Docker Compose (only for PostgreSQL/Airflow), Power BI Desktop (optional, Windows).
 
 ```bash
-git clone https://github.com/<your-user>/weather-data-engineering-pipeline.git
+git clone https://github.com/lucasmorada/weather-data-engineering-pipeline.git
 cd weather-data-engineering-pipeline
 
 python -m venv .venv
