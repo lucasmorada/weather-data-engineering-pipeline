@@ -1,0 +1,122 @@
+# Infrastructure for the weather pipeline: PostgreSQL (data warehouse) + Apache Airflow.
+#
+# First run:
+#   1. cp .env.example .env   (and set the passwords)
+#   2. docker compose up airflow-init     (creates the Airflow metadata DB and admin user)
+#   3. docker compose up -d
+#   4. open http://localhost:8080 and enable the DAG "weather_data_pipeline"
+#
+# This setup is meant for LOCAL DEVELOPMENT / LEARNING, not for production.
+
+x-airflow-common: &airflow-common
+  image: apache/airflow:2.9.3
+  # On Linux, set AIRFLOW_UID to your user id so mounted folders keep the right owner.
+  user: "${AIRFLOW_UID:-50000}:0"
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD:-airflow}@airflow-postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-change_me_to_a_random_string}
+    # Extra Python packages used by src/ (installed when the container starts).
+    # Fine for a demo; build a custom image for production.
+    _PIP_ADDITIONAL_REQUIREMENTS: "pyarrow>=14.0 python-dotenv>=1.0"
+    # Make the project code importable inside the container.
+    PYTHONPATH: /opt/airflow
+    PROJECT_ROOT: /opt/airflow
+    # Data warehouse connection (the service name replaces localhost).
+    WEATHER_DB_HOST: weather-postgres
+    WEATHER_DB_PORT: "5432"
+    WEATHER_DB_NAME: ${WEATHER_DB_NAME:-weather_dw}
+    WEATHER_DB_USER: ${WEATHER_DB_USER:-weather_user}
+    WEATHER_DB_PASSWORD: ${WEATHER_DB_PASSWORD:?Set WEATHER_DB_PASSWORD in your .env file}
+    WEATHER_PAST_DAYS: ${WEATHER_PAST_DAYS:-7}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./src:/opt/airflow/src
+    - ./config:/opt/airflow/config
+    - ./sql:/opt/airflow/sql
+    - ./data:/opt/airflow/data
+
+services:
+  # ---------------------------------------------------------------- Data warehouse
+  weather-postgres:
+    image: postgres:16
+    container_name: weather-postgres
+    environment:
+      POSTGRES_DB: ${WEATHER_DB_NAME:-weather_dw}
+      POSTGRES_USER: ${WEATHER_DB_USER:-weather_user}
+      POSTGRES_PASSWORD: ${WEATHER_DB_PASSWORD:?Set WEATHER_DB_PASSWORD in your .env file}
+    ports:
+      - "${WEATHER_DB_PORT:-5432}:5432"   # lets Power BI / DBeaver connect from the host
+    volumes:
+      - weather-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${WEATHER_DB_USER:-weather_user} -d ${WEATHER_DB_NAME:-weather_dw}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- Airflow metadata DB
+  airflow-postgres:
+    image: postgres:16
+    container_name: airflow-postgres
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
+    volumes:
+      - airflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------- Airflow
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    command: >
+      bash -c "airflow db migrate &&
+      airflow users create --username ${AIRFLOW_ADMIN_USER:-admin}
+      --password ${AIRFLOW_ADMIN_PASSWORD:-admin} --firstname Admin --lastname User
+      --role Admin --email admin@example.com || true"
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: airflow-webserver
+    command: webserver
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+      weather-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+      weather-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  weather-postgres-data:
+  airflow-postgres-data:
